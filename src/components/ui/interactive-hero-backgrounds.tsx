@@ -4,11 +4,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ACESFilmicToneMapping,
   AmbientLight,
+  AdditiveBlending,
   Box3,
   Clock,
   Color,
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   InstancedMesh,
   MathUtils,
   MeshPhysicalMaterial,
@@ -526,6 +528,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     const starsCount = devicePerf.reducedMotion || devicePerf.isMobileLike ? 450 : 900;
     const starsRadius = 80;
     const starsPositions = new Float32Array(starsCount * 3);
+    const starsColors = new Float32Array(starsCount * 3);
     const rng = mulberry32((config as any)?.seed ?? 42);
     for (let i = 0; i < starsCount; i++) {
       // random point on/inside a sphere
@@ -540,16 +543,51 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       starsPositions[i * 3 + 0] = x;
       starsPositions[i * 3 + 1] = y;
       starsPositions[i * 3 + 2] = z;
+
+      // Slightly varied star color + brightness for a more realistic look.
+      const brightness = 0.55 + rng() * 0.75;
+      const tint = rng();
+      // Mostly white with a hint of cool/yellow.
+      const rC = 0.95 + tint * 0.08;
+      const gC = 0.98 + (1 - tint) * 0.06;
+      const bC = 1.0 - tint * 0.12;
+      starsColors[i * 3 + 0] = rC * brightness;
+      starsColors[i * 3 + 1] = gC * brightness;
+      starsColors[i * 3 + 2] = bC * brightness;
     }
     const starsGeometry = new BufferGeometry();
     starsGeometry.setAttribute("position", new BufferAttribute(starsPositions, 3));
+    starsGeometry.setAttribute("color", new BufferAttribute(starsColors, 3));
+
+    // Star sprite texture to turn "pixels" into glowing points.
+    const starSprite = document.createElement("canvas");
+    starSprite.width = 64;
+    starSprite.height = 64;
+    const ctx = starSprite.getContext("2d");
+    if (ctx) {
+      const grd = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grd.addColorStop(0.0, "rgba(255,255,255,1)");
+      grd.addColorStop(0.25, "rgba(255,255,255,0.85)");
+      grd.addColorStop(0.55, "rgba(255,255,255,0.25)");
+      grd.addColorStop(1.0, "rgba(255,255,255,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, 64, 64);
+    }
+    const starTexture = new CanvasTexture(starSprite);
+    starTexture.colorSpace = SRGBColorSpace;
+    starTexture.needsUpdate = true;
+
     const starsMaterial = new PointsMaterial({
-      color: 0xffffff,
-      size: 0.35,
-      sizeAttenuation: true,
+      map: starTexture,
+      vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 1,
       depthWrite: false,
+      // Additive looks like glow.
+      blending: AdditiveBlending,
+      alphaTest: 0.01,
+      size: devicePerf.reducedMotion || devicePerf.isMobileLike ? 0.7 : 1.0,
+      sizeAttenuation: true,
     });
     const stars = new Points(starsGeometry, starsMaterial);
     three.scene.add(stars);
@@ -597,6 +635,8 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       mounted = false;
       if (modelRoot) three.scene.remove(modelRoot);
       three.scene.remove(stars);
+      starsGeometry.dispose();
+      (starsMaterial as PointsMaterial).map?.dispose?.();
       three.scene.remove(ambient);
       three.scene.remove(point);
       three.dispose();
