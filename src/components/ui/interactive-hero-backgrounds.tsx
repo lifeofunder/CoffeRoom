@@ -523,6 +523,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     let mounted = true;
     let modelRoot: Object3D | null = null;
     let modelMaxDim = 1;
+    let lastFitMinSpan: number | null = null;
 
     const fitModelToView = (view: { wWidth: number; wHeight: number } | null) => {
       if (!modelRoot) return;
@@ -534,6 +535,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       // Safety: avoid "moon disappears" on refresh when view sizes are temporarily 0/NaN.
       if (!Number.isFinite(s) || s <= 0) s = 0.05;
       s = Math.max(s, 0.05);
+      // On mobile, quick scrolling can change viewport height (browser chrome hide/show).
+      // That triggers resize and our rescaling, which looks like "moon jerking".
+      // If showChrome=false, keep scale stable unless the view span changed meaningfully.
+      if (!showChrome && lastFitMinSpan != null) {
+        const lastSpan = lastFitMinSpan;
+        const delta = Math.abs(minSpan - lastSpan);
+        const rel = lastSpan > 0 ? delta / lastSpan : 1;
+        if (rel < 0.02) return; // ~2% or less change -> ignore
+      }
+
+      lastFitMinSpan = minSpan;
       modelRoot.scale.setScalar(s);
     };
 
