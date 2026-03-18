@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Phone, MapPin, MessageCircleMore, Send } from "lucide-react";
@@ -145,44 +145,6 @@ export default function Home() {
   const [zodiac, setZodiac] = useState<(typeof ZODIAC)[number]>("Овен");
   const todayKey = useMemo(() => dateKey(), []);
   const zodiacBaseText = useMemo(() => ZODIAC_BASE[zodiac], [zodiac]);
-  const [dailyLoading, setDailyLoading] = useState(false);
-  const [dailyText, setDailyText] = useState<string>("");
-
-  useEffect(() => {
-    const signEn = ZODIAC_EN[zodiac];
-    const controller = new AbortController();
-    let alive = true;
-
-    async function run() {
-      try {
-        setDailyLoading(true);
-        const res = await fetch(`/api/horoscope?sign=${encodeURIComponent(signEn)}`, {
-          method: "GET",
-          signal: controller.signal,
-        });
-        const data = (await res.json()) as { description_ru?: string };
-        if (!alive) return;
-        if (res.ok && typeof data?.description_ru === "string" && data.description_ru.trim()) {
-          setDailyText(data.description_ru.trim());
-        } else {
-          setDailyText("");
-        }
-      } catch {
-        if (!alive) return;
-        setDailyText("");
-      } finally {
-        if (!alive) return;
-        setDailyLoading(false);
-      }
-    }
-
-    run();
-
-    return () => {
-      alive = false;
-      controller.abort();
-    };
-  }, [zodiac]);
 
   return (
     <InteractiveHero
@@ -337,20 +299,6 @@ export default function Home() {
 
                 <div className="mt-4 max-w-4xl h-[320px] sm:h-[300px] md:h-[280px] overflow-auto pr-2 space-y-3">
                   <p className="text-base leading-relaxed text-foreground/85">{zodiacBaseText}</p>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Гороскоп на сегодня</div>
-                    <div className="mt-2 text-sm leading-relaxed text-foreground/90">
-                      {dailyLoading ? (
-                        <span className="text-muted-foreground">Загружаем…</span>
-                      ) : dailyText ? (
-                        dailyText
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Сейчас не получилось подтянуть текст. Можно обновить страницу или попробовать чуть позже.
-                        </span>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
