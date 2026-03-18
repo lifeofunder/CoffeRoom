@@ -18,6 +18,7 @@ import {
   Scene,
   SphereGeometry,
   SRGBColorSpace,
+  TextureLoader,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -379,6 +380,12 @@ const darkColors = ["#444444", "#222222", "#111111"];
 
 type BallpitProps = Partial<typeof defaultBallpitConfig & { colors: (string | Color)[] }>;
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+function withBasePath(p: string) {
+  if (!p.startsWith("/")) return `${BASE_PATH}/${p}`;
+  return `${BASE_PATH}${p}`;
+}
+
 interface InteractiveHeroProps {
   brandName?: string;
   heroTitle?: string;
@@ -468,6 +475,24 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     if (config.count > 0) {
       const spheres = new Z(three.renderer, config);
       three.scene.add(spheres);
+
+      // Apply moon texture to all spheres (keeps physics/animation intact)
+      const loader = new TextureLoader();
+      const moonUrl = withBasePath("/textures/moon.png");
+      loader.load(
+        moonUrl,
+        (tex) => {
+          tex.colorSpace = SRGBColorSpace;
+          const mat = spheres.material as MeshPhysicalMaterial;
+          mat.map = tex;
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+        },
+        undefined,
+        () => {
+          // ignore texture load errors; fallback is plain material/colors
+        }
+      );
 
       const raycaster = new Raycaster();
       const plane = new Plane(new Vector3(0, 0, 1), 0);
