@@ -423,7 +423,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       ...(devicePerf.reducedMotion
         ? { count: 0, maxFps: 1 } // почти статично и дёшево
         : devicePerf.tier === "low"
-          ? { count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 48), maxPixelRatio: 1, maxFps: 45 }
+          ? {
+              count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 44),
+              maxPixelRatio: 1,
+              maxFps: 40,
+              // на touch-устройствах большой "float" выглядит как тряска на 30–40fps
+              floatAmplitude: 0.16,
+              floatSpeed: 0.22,
+              maxVelocity: 0.034,
+              friction: 0.995,
+              wallBounce: 0.12,
+            }
           : { count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 72), maxPixelRatio: 1.5, maxFps: 60 }),
     }),
     // важно: не завязываемся на ссылку ballpitConfig,

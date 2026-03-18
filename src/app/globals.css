@@ -32,13 +32,22 @@ html {
 @layer utilities {
   .k-card {
     perspective: 1000px;
+    cursor: pointer;
   }
   .k-card-inner {
     transform-style: preserve-3d;
     transition: transform 0.6s ease-out;
   }
-  .k-card:hover .k-card-inner,
-  .k-card:focus-within .k-card-inner {
+  /* Desktop hover only (avoid sticky :hover on touch devices) */
+  @media (hover: hover) and (pointer: fine) {
+    .k-card:hover .k-card-inner,
+    .k-card:focus-within .k-card-inner {
+      transform: rotateY(180deg);
+    }
+  }
+
+  /* Mobile/touch flip via explicit state */
+  .k-card[data-flipped="true"] .k-card-inner {
     transform: rotateY(180deg);
   }
   .k-face {

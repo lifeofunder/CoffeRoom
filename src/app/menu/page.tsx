@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { RotateCw } from "lucide-react";
 import { InteractiveHero } from "@/components/ui/interactive-hero-backgrounds";
 
 type MenuCat = "all" | "food" | "coffee" | "author" | "tea" | "dessert";
@@ -67,6 +68,7 @@ const MENU: MenuItem[] = [
 export default function MenuPage() {
   const [menuCat, setMenuCat] = useState<MenuCat>("all");
   const filtered = useMemo(() => (menuCat === "all" ? MENU : MENU.filter((m) => m.cat === menuCat)), [menuCat]);
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
 
   return (
     <InteractiveHero
@@ -147,8 +149,28 @@ export default function MenuPage() {
 
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filtered.map((m) => (
-                <article key={m.key} className="k-card rounded-2xl">
+                <article
+                  key={m.key}
+                  className="k-card rounded-2xl"
+                  data-flipped={flipped[m.key] ? "true" : "false"}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={Boolean(flipped[m.key])}
+                  onClick={() => setFlipped((prev) => ({ ...prev, [m.key]: !prev[m.key] }))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setFlipped((prev) => ({ ...prev, [m.key]: !prev[m.key] }));
+                    }
+                  }}
+                >
                   <div className="k-card-inner relative min-h-[250px]">
+                    {/* mobile hint: tap to flip */}
+                    <div className="sm:hidden pointer-events-none absolute right-3 top-3 z-10">
+                      <div className="inline-flex items-center justify-center rounded-full border border-white/15 bg-black/30 backdrop-blur px-2.5 py-2">
+                        <RotateCw className="h-4 w-4 text-white/85" />
+                      </div>
+                    </div>
                     <div className="k-face absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                       <div className="h-[170px] bg-black/10">
                         <img src={m.img} alt={m.title} className="h-full w-full object-cover" />
