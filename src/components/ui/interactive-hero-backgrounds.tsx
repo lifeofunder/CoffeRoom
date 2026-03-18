@@ -507,7 +507,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     const maxFps = devicePerf.reducedMotion ? 1 : devicePerf.isMobileLike ? 30 : 60;
     // When showChrome={false} we fix the canvas to the viewport so the moon stays centered on scroll.
     const sizeMode = showChrome ? "parent" : "window";
-    const three = new X({ canvas, size: sizeMode, maxPixelRatio: config.maxPixelRatio, maxFps, rendererOptions: config.rendererOptions });
+    // Reduce aliasing on the moon contour:
+    // - enable antialias in WebGLRenderer
+    // - slightly increase pixel ratio when the canvas is fixed to viewport (mobile)
+    const maxPixelRatio = !showChrome && devicePerf.isMobileLike ? 1.5 : config.maxPixelRatio;
+    const three = new X({
+      canvas,
+      size: sizeMode,
+      maxPixelRatio,
+      maxFps,
+      rendererOptions: { ...(config.rendererOptions ?? {}), antialias: true },
+    });
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
     // X() calls resize() inside its constructor before we set camera.z.
