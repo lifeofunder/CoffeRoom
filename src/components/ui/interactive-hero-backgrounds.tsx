@@ -25,6 +25,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useTheme } from "next-themes";
 import { ArrowRight, Mail, Menu, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -483,85 +484,47 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
 
-    if (config.count > 0) {
-      const spheres = new Z(three.renderer, config);
-      three.scene.add(spheres);
+    let mounted = true;
+    let modelRoot: Object3D | null = null;
 
-      // Apply moon texture to all spheres (keeps physics/animation intact)
-      const loader = new TextureLoader();
-      const moonUrl = withBasePath("/textures/moon.png");
-      loader.load(
-        moonUrl,
-        (tex) => {
-          tex.colorSpace = SRGBColorSpace;
-          // Sharpen texture on small, moving spheres
-          tex.generateMipmaps = false;
-          tex.minFilter = LinearFilter;
-          tex.magFilter = LinearFilter;
-          tex.anisotropy = Math.min(8, three.renderer.capabilities.getMaxAnisotropy?.() ?? 8);
-          tex.needsUpdate = true;
-          const mat = spheres.material as MeshPhysicalMaterial;
-          mat.map = tex;
-          // Make the moon clearly visible:
-          // - low metalness/strong emissive to avoid dimming by env lighting
-          // - keep texture crisp
-          mat.color.set(0xffffff);
-          mat.metalness = 0.0;
-          mat.roughness = 0.7;
-          mat.clearcoat = 0.0;
-          mat.clearcoatRoughness = 1.0;
-          mat.envMapIntensity = 0.05;
-          mat.emissive.set(0xffffff);
-          mat.emissiveMap = tex;
-          mat.emissiveIntensity = 2.0;
-          mat.needsUpdate = true;
-        },
-        undefined,
-        () => {
-          // ignore texture load errors; fallback is plain material/colors
-        }
-      );
+    // Lights: enough for PBR GLB moon model.
+    const ambient = new AmbientLight(0xffffff, 1.4);
+    three.scene.add(ambient);
+    const point = new PointLight(0xffffff, 2.6, 100, 2);
+    point.position.set(10, 8, 10);
+    three.scene.add(point);
 
-      const raycaster = new Raycaster();
-      const plane = new Plane(new Vector3(0, 0, 1), 0);
-      const intersectionPoint = new Vector3();
-
-      if (config.followCursor) {
-        window.addEventListener("pointermove", onPointerMove);
+    const gltfLoader = new GLTFLoader();
+    const modelUrl = withBasePath("/models/moon.glb");
+    gltfLoader.load(
+      modelUrl,
+      (gltf) => {
+        if (!mounted) return;
+        modelRoot = gltf.scene;
+        modelRoot.position.set(0, 0, 0);
+        // Fit model inside the camera view.
+        modelRoot.scale.setScalar(1.0);
+        modelRoot.rotation.set(0, 0, 0);
+        three.scene.add(modelRoot);
+      },
+      undefined,
+      () => {
+        // If model fails to load, keep empty scene (no hard crash).
       }
+    );
 
-      // If staticBackground is enabled, render once and stop updating physics.
-      if (!config.staticBackground) {
-        three.onBeforeRender = (deltaInfo) => {
-          if (config.followCursor) {
-            raycaster.setFromCamera(pointer, three.camera);
-            if (raycaster.ray.intersectPlane(plane, intersectionPoint)) {
-              spheres.physics.center.copy(intersectionPoint);
-            }
-          }
-          spheres.update(deltaInfo);
-        };
-      } else {
-        // One-time instance matrix fill (positions are initialized already).
-        spheres.update({ delta: 0 });
-        three.onBeforeRender = () => {};
-      }
-
-      three.onAfterResize = (size) => {
-        spheres.physics.config.maxX = size.wWidth / 2;
-        spheres.physics.config.maxY = size.wHeight / 2;
-        spheres.physics.config.maxZ = size.wWidth / 4;
-      };
-
-      return () => {
-        if (config.followCursor) {
-          window.removeEventListener("pointermove", onPointerMove);
-        }
-        three.dispose();
-      };
-    }
+    const rotateSpeed = 0.35; // radians per second-ish (scaled by elapsed time)
+    three.onBeforeRender = ({ elapsed }) => {
+      if (!modelRoot) return;
+      // rotate around its local Y axis
+      modelRoot.rotation.y = elapsed * rotateSpeed;
+    };
 
     return () => {
+      mounted = false;
+      if (modelRoot) three.scene.remove(modelRoot);
+      three.scene.remove(ambient);
+      three.scene.remove(point);
       three.dispose();
     };
   }, [config]);
