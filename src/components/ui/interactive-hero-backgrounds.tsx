@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ACESFilmicToneMapping,
   AmbientLight,
+  Box3,
   Clock,
   Color,
   InstancedMesh,
@@ -487,6 +488,12 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
 
+    // Environment lighting for PBR GLB materials.
+    const pmrem = new PMREMGenerator(three.renderer);
+    const envTexture = pmrem.fromScene(new RoomEnvironment()).texture;
+    pmrem.dispose();
+    three.scene.environment = envTexture;
+
     let mounted = true;
     let modelRoot: Object3D | null = null;
 
@@ -504,9 +511,15 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       (gltf) => {
         if (!mounted) return;
         modelRoot = gltf.scene;
-        modelRoot.position.set(0, 0, 0);
-        // Fit model inside the camera view.
-        modelRoot.scale.setScalar(1.0);
+        // Center + scale the model so it fits nicely in the camera view.
+        const box = new Box3().setFromObject(modelRoot);
+        const center = box.getCenter(new Vector3());
+        modelRoot.position.sub(center);
+        const size = box.getSize(new Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const targetSize = 8; // world units the model should roughly occupy
+        const s = targetSize / maxDim;
+        modelRoot.scale.setScalar(s);
         modelRoot.rotation.set(0, 0, 0);
         three.scene.add(modelRoot);
       },
