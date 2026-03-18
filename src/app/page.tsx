@@ -180,7 +180,7 @@ export default function Home() {
                   О нас
                 </a>
                 <Link
-                  href="/menu"
+                  href="/menu/"
                   className="rounded-full px-4 py-2 bg-primary/25 text-foreground hover:bg-primary/35 transition-colors transition-transform duration-200 hover:scale-[1.03]"
                 >
                   Меню
@@ -207,7 +207,7 @@ export default function Home() {
                   Получить знак судьбы
                 </a>
                 <Link
-                  href="/menu"
+                  href="/menu/"
                   className="rounded-full bg-white/15 border border-white/25 px-5 py-3 font-semibold hover:bg-white/20 transition-colors transition-transform duration-200 hover:scale-[1.02] text-foreground"
                 >
                   Смотреть меню
