@@ -531,7 +531,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       const minSpan = Math.min(view.wWidth, view.wHeight) * 0.78; // leave some margins
       const safeMaxDim = modelMaxDim || 1;
       let s = minSpan / safeMaxDim;
-      if (!Number.isFinite(s) || s <= 0) s = 0.01; // safety: avoid disappearing due to 0-sized view on refresh
+      // Safety: avoid "moon disappears" on refresh when view sizes are temporarily 0/NaN.
+      if (!Number.isFinite(s) || s <= 0) s = 0.05;
+      s = Math.max(s, 0.05);
       modelRoot.scale.setScalar(s);
     };
 
@@ -544,72 +546,81 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
 
     // Stars background (static particle field).
     // Keep it lightweight on mobile.
-    const starsCount = devicePerf.reducedMotion || devicePerf.isMobileLike ? 450 : 900;
-    const starsRadius = 80;
-    const starsPositions = new Float32Array(starsCount * 3);
-    const starsColors = new Float32Array(starsCount * 3);
-    const rng = mulberry32((config as any)?.seed ?? 42);
-    for (let i = 0; i < starsCount; i++) {
-      // random point on/inside a sphere
-      const u = rng();
-      const v = rng();
-      const theta = 2 * Math.PI * u;
-      const phi = Math.acos(2 * v - 1);
-      const r = starsRadius * Math.cbrt(rng());
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.cos(phi);
-      const z = r * Math.sin(phi) * Math.sin(theta);
-      starsPositions[i * 3 + 0] = x;
-      starsPositions[i * 3 + 1] = y;
-      starsPositions[i * 3 + 2] = z;
+    let stars: Points | null = null;
+    let starsGeometry: BufferGeometry | null = null;
+    let starsMaterial: PointsMaterial | null = null;
 
-      // Slightly varied star color + brightness for a more realistic look.
-      const brightness = 0.55 + rng() * 0.75;
-      const tint = rng();
-      // Mostly white with a hint of cool/yellow.
-      const rC = 0.95 + tint * 0.08;
-      const gC = 0.98 + (1 - tint) * 0.06;
-      const bC = 1.0 - tint * 0.12;
-      starsColors[i * 3 + 0] = rC * brightness;
-      starsColors[i * 3 + 1] = gC * brightness;
-      starsColors[i * 3 + 2] = bC * brightness;
+    // Protect against rare browser quirks during canvas/texture creation.
+    // If stars fail, we still must render the moon.
+    try {
+      const starsCount = devicePerf.reducedMotion || devicePerf.isMobileLike ? 450 : 900;
+      const starsRadius = 80;
+      const starsPositions = new Float32Array(starsCount * 3);
+      const starsColors = new Float32Array(starsCount * 3);
+      const rng = mulberry32((config as any)?.seed ?? 42);
+      for (let i = 0; i < starsCount; i++) {
+        // random point on/inside a sphere
+        const u = rng();
+        const v = rng();
+        const theta = 2 * Math.PI * u;
+        const phi = Math.acos(2 * v - 1);
+        const r = starsRadius * Math.cbrt(rng());
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.cos(phi);
+        const z = r * Math.sin(phi) * Math.sin(theta);
+        starsPositions[i * 3 + 0] = x;
+        starsPositions[i * 3 + 1] = y;
+        starsPositions[i * 3 + 2] = z;
+
+        const brightness = 0.55 + rng() * 0.75;
+        const tint = rng();
+        const rC = 0.95 + tint * 0.08;
+        const gC = 0.98 + (1 - tint) * 0.06;
+        const bC = 1.0 - tint * 0.12;
+        starsColors[i * 3 + 0] = rC * brightness;
+        starsColors[i * 3 + 1] = gC * brightness;
+        starsColors[i * 3 + 2] = bC * brightness;
+      }
+
+      starsGeometry = new BufferGeometry();
+      starsGeometry.setAttribute("position", new BufferAttribute(starsPositions, 3));
+      starsGeometry.setAttribute("color", new BufferAttribute(starsColors, 3));
+
+      // Star sprite texture to turn "pixels" into glowing points.
+      const starSprite = document.createElement("canvas");
+      starSprite.width = 64;
+      starSprite.height = 64;
+      const ctx = starSprite.getContext("2d");
+      if (ctx) {
+        const grd = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grd.addColorStop(0.0, "rgba(255,255,255,1)");
+        grd.addColorStop(0.25, "rgba(255,255,255,0.85)");
+        grd.addColorStop(0.55, "rgba(255,255,255,0.25)");
+        grd.addColorStop(1.0, "rgba(255,255,255,0)");
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, 64, 64);
+      }
+      const starTexture = new CanvasTexture(starSprite);
+      starTexture.colorSpace = SRGBColorSpace;
+      starTexture.needsUpdate = true;
+
+      starsMaterial = new PointsMaterial({
+        map: starTexture,
+        vertexColors: true,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        alphaTest: 0.01,
+        size: devicePerf.reducedMotion || devicePerf.isMobileLike ? 0.7 : 1.0,
+        sizeAttenuation: true,
+      });
+
+      stars = new Points(starsGeometry, starsMaterial);
+      three.scene.add(stars);
+    } catch {
+      // ignore stars errors
     }
-    const starsGeometry = new BufferGeometry();
-    starsGeometry.setAttribute("position", new BufferAttribute(starsPositions, 3));
-    starsGeometry.setAttribute("color", new BufferAttribute(starsColors, 3));
-
-    // Star sprite texture to turn "pixels" into glowing points.
-    const starSprite = document.createElement("canvas");
-    starSprite.width = 64;
-    starSprite.height = 64;
-    const ctx = starSprite.getContext("2d");
-    if (ctx) {
-      const grd = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      grd.addColorStop(0.0, "rgba(255,255,255,1)");
-      grd.addColorStop(0.25, "rgba(255,255,255,0.85)");
-      grd.addColorStop(0.55, "rgba(255,255,255,0.25)");
-      grd.addColorStop(1.0, "rgba(255,255,255,0)");
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, 64, 64);
-    }
-    const starTexture = new CanvasTexture(starSprite);
-    starTexture.colorSpace = SRGBColorSpace;
-    starTexture.needsUpdate = true;
-
-    const starsMaterial = new PointsMaterial({
-      map: starTexture,
-      vertexColors: true,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false,
-      // Additive looks like glow.
-      blending: AdditiveBlending,
-      alphaTest: 0.01,
-      size: devicePerf.reducedMotion || devicePerf.isMobileLike ? 0.7 : 1.0,
-      sizeAttenuation: true,
-    });
-    const stars = new Points(starsGeometry, starsMaterial);
-    three.scene.add(stars);
 
     const gltfLoader = new GLTFLoader();
     const modelUrl = withBasePath("/models/moon.glb");
@@ -665,9 +676,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     return () => {
       mounted = false;
       if (modelRoot) three.scene.remove(modelRoot);
-      three.scene.remove(stars);
-      starsGeometry.dispose();
-      (starsMaterial as PointsMaterial).map?.dispose?.();
+      if (stars) three.scene.remove(stars);
+      starsGeometry?.dispose();
+      starsMaterial?.map?.dispose?.();
       three.scene.remove(ambient);
       three.scene.remove(point);
       three.dispose();
