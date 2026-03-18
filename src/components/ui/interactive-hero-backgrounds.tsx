@@ -502,12 +502,18 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
           tex.needsUpdate = true;
           const mat = spheres.material as MeshPhysicalMaterial;
           mat.map = tex;
-          // Make the texture visible regardless of theme colors/lighting.
+          // Make the moon clearly visible:
+          // - low metalness/strong emissive to avoid dimming by env lighting
+          // - keep texture crisp
           mat.color.set(0xffffff);
-          mat.metalness = 0.15;
-          mat.roughness = 0.85;
-          mat.clearcoat = 0.25;
-          mat.clearcoatRoughness = 0.9;
+          mat.metalness = 0.0;
+          mat.roughness = 0.7;
+          mat.clearcoat = 0.0;
+          mat.clearcoatRoughness = 1.0;
+          mat.envMapIntensity = 0.05;
+          mat.emissive.set(0xffffff);
+          mat.emissiveMap = tex;
+          mat.emissiveIntensity = 2.0;
           mat.needsUpdate = true;
         },
         undefined,
