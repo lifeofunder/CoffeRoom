@@ -488,7 +488,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     // We render a rotating GLB model, so don't clamp FPS to "almost static" for touch devices
     // (previously used to avoid sphere jitter).
     const maxFps = devicePerf.reducedMotion ? 1 : devicePerf.isMobileLike ? 30 : 60;
-    const three = new X({ canvas, size: "parent", maxPixelRatio: config.maxPixelRatio, maxFps, rendererOptions: config.rendererOptions });
+    // When showChrome={false} we fix the canvas to the viewport so the moon stays centered on scroll.
+    const sizeMode = showChrome ? "parent" : "window";
+    const three = new X({ canvas, size: sizeMode, maxPixelRatio: config.maxPixelRatio, maxFps, rendererOptions: config.rendererOptions });
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
 
@@ -599,7 +601,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       three.scene.remove(point);
       three.dispose();
     };
-  }, [config]);
+  }, [config, showChrome]);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -610,7 +612,13 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
 
   return (
     <div className={cn("relative w-full overflow-hidden bg-background", showChrome ? "h-screen" : "min-h-[520px]", className)}>
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-0" />
+      <canvas
+        ref={canvasRef}
+        className={cn(
+          "z-0 pointer-events-none",
+          showChrome ? "absolute inset-0 w-full h-full" : "fixed inset-0 w-screen h-screen"
+        )}
+      />
 
       {showChrome ? (
         <>
