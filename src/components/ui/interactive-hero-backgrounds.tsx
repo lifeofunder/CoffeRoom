@@ -411,7 +411,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     const small = window.matchMedia?.("(max-width: 640px)")?.matches ?? false;
     const hc = typeof navigator !== "undefined" ? (navigator as any).hardwareConcurrency : undefined;
     const tier = reducedMotion || small || (typeof hc === "number" && hc <= 4) ? ("low" as const) : ("mid" as const);
-    return { tier, reducedMotion };
+    return { tier, reducedMotion, small };
   }, []);
 
   const config = useMemo(
@@ -422,6 +422,22 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       // авто-адаптация под слабые устройства
       ...(devicePerf.reducedMotion
         ? { count: 0, maxFps: 1 } // почти статично и дёшево
+        : devicePerf.small
+          ? {
+              // mobile: полностью статичный фон (без "дрожи" от 30–40fps)
+              count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 44),
+              maxPixelRatio: 1,
+              maxFps: 5,
+              floatSpring: 0,
+              floatAmplitude: 0,
+              floatSpeed: 0,
+              cursorAttract: 0,
+              followCursor: false,
+              maxVelocity: 0,
+              friction: 1,
+              wallBounce: 0,
+              collisions: false,
+            }
         : devicePerf.tier === "low"
           ? {
               count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 44),
@@ -438,7 +454,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     }),
     // важно: не завязываемся на ссылку ballpitConfig,
     // чтобы не пересоздавать сцену при каждом рендере родителя
-    [theme, devicePerf.tier, devicePerf.reducedMotion, JSON.stringify(ballpitConfig)]
+    [theme, devicePerf.tier, devicePerf.reducedMotion, devicePerf.small, JSON.stringify(ballpitConfig)]
   );
 
   useEffect(() => {
