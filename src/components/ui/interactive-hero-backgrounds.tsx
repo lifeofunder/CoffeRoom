@@ -530,7 +530,8 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
 
       const minSpan = Math.min(view.wWidth, view.wHeight) * 0.78; // leave some margins
       const safeMaxDim = modelMaxDim || 1;
-      const s = minSpan / safeMaxDim;
+      let s = minSpan / safeMaxDim;
+      if (!Number.isFinite(s) || s <= 0) s = 0.01; // safety: avoid disappearing due to 0-sized view on refresh
       modelRoot.scale.setScalar(s);
     };
 
@@ -629,6 +630,11 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
         fitModelToView({ wWidth: three.size.wWidth, wHeight: three.size.wHeight });
 
         modelRoot.rotation.set(0, 0, 0);
+        modelRoot.visible = true;
+        modelRoot.traverse((obj) => {
+          // Avoid frustum culling accidentally hiding the model.
+          (obj as any).frustumCulled = false;
+        });
         three.scene.add(modelRoot);
 
         // Force an immediate render so the moon appears even if the RAF loop
