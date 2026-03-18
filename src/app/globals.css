@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .k-card {
+    perspective: 1000px;
+  }
+  .k-card-inner {
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease-out;
+  }
+  .k-card:hover .k-card-inner,
+  .k-card:focus-within .k-card-inner {
+    transform: rotateY(180deg);
+  }
+  .k-face {
+    backface-visibility: hidden;
+  }
+  .k-back {
+    transform: rotateY(180deg);
+  }
+}
