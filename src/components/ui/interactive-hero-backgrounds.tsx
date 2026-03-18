@@ -18,6 +18,7 @@ import {
   Scene,
   SphereGeometry,
   SRGBColorSpace,
+  LinearFilter,
   TextureLoader,
   Vector2,
   Vector3,
@@ -493,6 +494,12 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
         moonUrl,
         (tex) => {
           tex.colorSpace = SRGBColorSpace;
+          // Sharpen texture on small, moving spheres
+          tex.generateMipmaps = false;
+          tex.minFilter = LinearFilter;
+          tex.magFilter = LinearFilter;
+          tex.anisotropy = Math.min(8, three.renderer.capabilities.getMaxAnisotropy?.() ?? 8);
+          tex.needsUpdate = true;
           const mat = spheres.material as MeshPhysicalMaterial;
           mat.map = tex;
           // Make the texture visible regardless of theme colors/lighting.
