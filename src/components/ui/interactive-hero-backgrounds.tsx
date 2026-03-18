@@ -510,6 +510,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     const three = new X({ canvas, size: sizeMode, maxPixelRatio: config.maxPixelRatio, maxFps, rendererOptions: config.rendererOptions });
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
+    // X() calls resize() inside its constructor before we set camera.z.
+    // Re-run resize so wWidth/wHeight are computed with the correct camera distance.
+    three.resize();
 
     // Environment lighting for PBR GLB materials.
     const pmrem = new PMREMGenerator(three.renderer);
