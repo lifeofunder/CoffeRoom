@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { RotateCw } from "lucide-react";
 import { InteractiveHero } from "@/components/ui/interactive-hero-backgrounds";
@@ -69,6 +69,20 @@ export default function MenuPage() {
   const [menuCat, setMenuCat] = useState<MenuCat>("all");
   const filtered = useMemo(() => (menuCat === "all" ? MENU : MENU.filter((m) => m.cat === menuCat)), [menuCat]);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const coarse = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+    const noHover = window.matchMedia?.("(hover: none)")?.matches ?? false;
+    const touch = coarse || noHover;
+    setIsTouchDevice(touch);
+  }, []);
+
+  useEffect(() => {
+    // Prevent stale "flipped" state on desktop after a touch interaction.
+    if (!isTouchDevice) setFlipped({});
+  }, [isTouchDevice]);
 
   return (
     <InteractiveHero
@@ -152,12 +166,16 @@ export default function MenuPage() {
                 <article
                   key={m.key}
                   className="k-card rounded-2xl"
-                  data-flipped={flipped[m.key] ? "true" : "false"}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={Boolean(flipped[m.key])}
-                  onClick={() => setFlipped((prev) => ({ ...prev, [m.key]: !prev[m.key] }))}
+                  data-flipped={isTouchDevice && flipped[m.key] ? "true" : "false"}
+                  role={isTouchDevice ? "button" : undefined}
+                  tabIndex={isTouchDevice ? 0 : -1}
+                  aria-pressed={isTouchDevice ? Boolean(flipped[m.key]) : undefined}
+                  onClick={() => {
+                    if (!isTouchDevice) return;
+                    setFlipped((prev) => ({ ...prev, [m.key]: !prev[m.key] }));
+                  }}
                   onKeyDown={(e) => {
+                    if (!isTouchDevice) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       setFlipped((prev) => ({ ...prev, [m.key]: !prev[m.key] }));
