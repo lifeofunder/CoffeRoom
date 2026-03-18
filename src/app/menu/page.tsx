@@ -87,7 +87,7 @@ export default function MenuPage() {
       }}
     >
       <div className="relative min-h-screen">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/75 via-background/90 to-background/95 backdrop-blur-[8px]" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/75 via-background/90 to-background/95" />
 
         <div className="relative z-10">
           <header className="mx-auto max-w-6xl px-4 pt-10">
