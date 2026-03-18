@@ -166,7 +166,7 @@ export default function MenuPage() {
                 >
                   <div className="k-card-inner relative min-h-[250px]">
                     {/* mobile hint: tap to flip */}
-                    <div className="sm:hidden pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+                    <div className="sm:hidden pointer-events-none absolute bottom-3 right-3 z-10">
                       <div className="inline-flex items-center justify-center rounded-full border border-white/15 bg-black/30 backdrop-blur px-3 py-2">
                         <RotateCw className="h-4 w-4 text-white/85" />
                       </div>

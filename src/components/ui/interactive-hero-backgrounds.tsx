@@ -416,9 +416,14 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     if (typeof window === "undefined") return { tier: "mid" as const, reducedMotion: false };
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
     const small = window.matchMedia?.("(max-width: 640px)")?.matches ?? false;
+    const touch =
+      window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches ??
+      // fallback: many mobile browsers report coarse pointer even if hover query unsupported
+      window.matchMedia?.("(pointer: coarse)")?.matches ??
+      false;
     const hc = typeof navigator !== "undefined" ? (navigator as any).hardwareConcurrency : undefined;
-    const tier = reducedMotion || small || (typeof hc === "number" && hc <= 4) ? ("low" as const) : ("mid" as const);
-    return { tier, reducedMotion, small };
+    const tier = reducedMotion || small || touch || (typeof hc === "number" && hc <= 4) ? ("low" as const) : ("mid" as const);
+    return { tier, reducedMotion, small, touch };
   }, []);
 
   const config = useMemo(
@@ -429,9 +434,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       // авто-адаптация под слабые устройства
       ...(devicePerf.reducedMotion
         ? { count: 0, maxFps: 1 } // почти статично и дёшево
-        : devicePerf.small
+        : devicePerf.touch
           ? {
-              // mobile: полностью статичный фон (без "дрожи" от 30–40fps)
+              // touch devices: полностью статичный фон (без "дрожи" от 30–40fps и sticky hover)
               count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 44),
               maxPixelRatio: 1,
               maxFps: 5,
@@ -461,7 +466,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     }),
     // важно: не завязываемся на ссылку ballpitConfig,
     // чтобы не пересоздавать сцену при каждом рендере родителя
-    [theme, devicePerf.tier, devicePerf.reducedMotion, devicePerf.small, JSON.stringify(ballpitConfig)]
+    [theme, devicePerf.tier, devicePerf.reducedMotion, devicePerf.small, devicePerf.touch, JSON.stringify(ballpitConfig)]
   );
 
   useEffect(() => {
