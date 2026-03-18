@@ -413,7 +413,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const devicePerf = useMemo(() => {
-    if (typeof window === "undefined") return { tier: "mid" as const, reducedMotion: false };
+    if (typeof window === "undefined") return { tier: "mid" as const, reducedMotion: false, isMobileLike: false };
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
     const small = window.matchMedia?.("(max-width: 640px)")?.matches ?? false;
     const touch =
@@ -421,9 +421,12 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       // fallback: many mobile browsers report coarse pointer even if hover query unsupported
       window.matchMedia?.("(pointer: coarse)")?.matches ??
       false;
+    const maxTouchPoints = typeof navigator !== "undefined" ? (navigator as any).maxTouchPoints : 0;
+    const hasTouchEvents = typeof window !== "undefined" && ("ontouchstart" in window);
+    const isMobileLike = Boolean(small || touch || maxTouchPoints > 0 || hasTouchEvents);
     const hc = typeof navigator !== "undefined" ? (navigator as any).hardwareConcurrency : undefined;
-    const tier = reducedMotion || small || touch || (typeof hc === "number" && hc <= 4) ? ("low" as const) : ("mid" as const);
-    return { tier, reducedMotion, small, touch };
+    const tier = reducedMotion || isMobileLike || (typeof hc === "number" && hc <= 4) ? ("low" as const) : ("mid" as const);
+    return { tier, reducedMotion, isMobileLike };
   }, []);
 
   const config = useMemo(
@@ -431,15 +434,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       ...defaultBallpitConfig,
       ...ballpitConfig,
       colors: theme === "dark" ? darkColors : lightColors,
+      staticBackground: false as boolean,
       // авто-адаптация под слабые устройства
       ...(devicePerf.reducedMotion
         ? { count: 0, maxFps: 1 } // почти статично и дёшево
-        : devicePerf.touch
+        : devicePerf.isMobileLike
           ? {
-              // touch devices: полностью статичный фон (без "дрожи" от 30–40fps и sticky hover)
+              // mobile/touch: полностью статичный фон (без "дрожи" и без обновления физики)
+              staticBackground: true,
               count: Math.min((ballpitConfig as any)?.count ?? defaultBallpitConfig.count, 44),
               maxPixelRatio: 1,
-              maxFps: 5,
+              maxFps: 1,
               floatSpring: 0,
               floatAmplitude: 0,
               floatSpeed: 0,
@@ -466,7 +471,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     }),
     // важно: не завязываемся на ссылку ballpitConfig,
     // чтобы не пересоздавать сцену при каждом рендере родителя
-    [theme, devicePerf.tier, devicePerf.reducedMotion, devicePerf.small, devicePerf.touch, JSON.stringify(ballpitConfig)]
+    [theme, devicePerf.tier, devicePerf.reducedMotion, devicePerf.isMobileLike, JSON.stringify(ballpitConfig)]
   );
 
   useEffect(() => {
@@ -490,7 +495,12 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
           tex.colorSpace = SRGBColorSpace;
           const mat = spheres.material as MeshPhysicalMaterial;
           mat.map = tex;
+          // Make the texture visible regardless of theme colors/lighting.
           mat.color.set(0xffffff);
+          mat.metalness = 0.15;
+          mat.roughness = 0.85;
+          mat.clearcoat = 0.25;
+          mat.clearcoatRoughness = 0.9;
           mat.needsUpdate = true;
         },
         undefined,
@@ -507,15 +517,22 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
         window.addEventListener("pointermove", onPointerMove);
       }
 
-      three.onBeforeRender = (deltaInfo) => {
-        if (config.followCursor) {
-          raycaster.setFromCamera(pointer, three.camera);
-          if (raycaster.ray.intersectPlane(plane, intersectionPoint)) {
-            spheres.physics.center.copy(intersectionPoint);
+      // If staticBackground is enabled, render once and stop updating physics.
+      if (!config.staticBackground) {
+        three.onBeforeRender = (deltaInfo) => {
+          if (config.followCursor) {
+            raycaster.setFromCamera(pointer, three.camera);
+            if (raycaster.ray.intersectPlane(plane, intersectionPoint)) {
+              spheres.physics.center.copy(intersectionPoint);
+            }
           }
-        }
-        spheres.update(deltaInfo);
-      };
+          spheres.update(deltaInfo);
+        };
+      } else {
+        // One-time instance matrix fill (positions are initialized already).
+        spheres.update({ delta: 0 });
+        three.onBeforeRender = () => {};
+      }
 
       three.onAfterResize = (size) => {
         spheres.physics.config.maxX = size.wWidth / 2;
