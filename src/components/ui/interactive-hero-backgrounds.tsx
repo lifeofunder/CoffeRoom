@@ -500,6 +500,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
 
     let mounted = true;
     let modelRoot: Object3D | null = null;
+    let modelMaxDim = 1;
+
+    const fitModelToView = (view: { wWidth: number; wHeight: number } | null) => {
+      if (!modelRoot) return;
+      if (!view) return;
+
+      const minSpan = Math.min(view.wWidth, view.wHeight) * 0.78; // leave some margins
+      const safeMaxDim = modelMaxDim || 1;
+      const s = minSpan / safeMaxDim;
+      modelRoot.scale.setScalar(s);
+    };
 
     // Lights: enough for PBR GLB moon model.
     const ambient = new AmbientLight(0xffffff, 1.4);
@@ -548,15 +559,17 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       (gltf) => {
         if (!mounted) return;
         modelRoot = gltf.scene;
-        // Center + scale the model so it fits nicely in the camera view.
+        // Center model so its bounding box center sits at origin.
         const box = new Box3().setFromObject(modelRoot);
         const center = box.getCenter(new Vector3());
         modelRoot.position.sub(center);
+
         const size = box.getSize(new Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        const targetSize = 8; // world units the model should roughly occupy
-        const s = targetSize / maxDim;
-        modelRoot.scale.setScalar(s);
+        modelMaxDim = Math.max(size.x, size.y, size.z) || 1;
+
+        // Initial fit using current view.
+        fitModelToView({ wWidth: three.size.wWidth, wHeight: three.size.wHeight });
+
         modelRoot.rotation.set(0, 0, 0);
         three.scene.add(modelRoot);
       },
@@ -571,6 +584,11 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       if (!modelRoot) return;
       // rotate around its local Y axis
       modelRoot.rotation.y = elapsed * rotateSpeed;
+    };
+
+    // Keep model perfectly centered and fully visible after any resize.
+    three.onAfterResize = (size) => {
+      fitModelToView(size);
     };
 
     return () => {
