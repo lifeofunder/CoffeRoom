@@ -612,6 +612,10 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
 
         modelRoot.rotation.set(0, 0, 0);
         three.scene.add(modelRoot);
+
+        // Force an immediate render so the moon appears even if the RAF loop
+        // hasn't started yet (IntersectionObserver timing on refresh).
+        three.renderer.render(three.scene, three.camera);
       },
       undefined,
       () => {
@@ -625,6 +629,9 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       // rotate around its local Y axis
       modelRoot.rotation.y = elapsed * rotateSpeed;
     };
+
+    // Render at least once even before GLB load completes.
+    three.renderer.render(three.scene, three.camera);
 
     // Keep model perfectly centered and fully visible after any resize.
     three.onAfterResize = (size) => {
