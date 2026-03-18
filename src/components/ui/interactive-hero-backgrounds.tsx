@@ -480,7 +480,10 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const three = new X({ canvas, size: "parent", maxPixelRatio: config.maxPixelRatio, maxFps: config.maxFps, rendererOptions: config.rendererOptions });
+    // We render a rotating GLB model, so don't clamp FPS to "almost static" for touch devices
+    // (previously used to avoid sphere jitter).
+    const maxFps = devicePerf.reducedMotion ? 1 : devicePerf.isMobileLike ? 30 : 60;
+    const three = new X({ canvas, size: "parent", maxPixelRatio: config.maxPixelRatio, maxFps, rendererOptions: config.rendererOptions });
     three.renderer.toneMapping = ACESFilmicToneMapping;
     three.camera.position.set(0, 0, 20);
 
