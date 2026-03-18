@@ -7,6 +7,8 @@ import {
   Box3,
   Clock,
   Color,
+  BufferAttribute,
+  BufferGeometry,
   InstancedMesh,
   MathUtils,
   MeshPhysicalMaterial,
@@ -15,6 +17,8 @@ import {
   PointLight,
   PMREMGenerator,
   PerspectiveCamera,
+  Points,
+  PointsMaterial,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -504,6 +508,39 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     point.position.set(10, 8, 10);
     three.scene.add(point);
 
+    // Stars background (static particle field).
+    // Keep it lightweight on mobile.
+    const starsCount = devicePerf.reducedMotion || devicePerf.isMobileLike ? 450 : 900;
+    const starsRadius = 80;
+    const starsPositions = new Float32Array(starsCount * 3);
+    const rng = mulberry32((config as any)?.seed ?? 42);
+    for (let i = 0; i < starsCount; i++) {
+      // random point on/inside a sphere
+      const u = rng();
+      const v = rng();
+      const theta = 2 * Math.PI * u;
+      const phi = Math.acos(2 * v - 1);
+      const r = starsRadius * Math.cbrt(rng());
+      const x = r * Math.sin(phi) * Math.cos(theta);
+      const y = r * Math.cos(phi);
+      const z = r * Math.sin(phi) * Math.sin(theta);
+      starsPositions[i * 3 + 0] = x;
+      starsPositions[i * 3 + 1] = y;
+      starsPositions[i * 3 + 2] = z;
+    }
+    const starsGeometry = new BufferGeometry();
+    starsGeometry.setAttribute("position", new BufferAttribute(starsPositions, 3));
+    const starsMaterial = new PointsMaterial({
+      color: 0xffffff,
+      size: 0.35,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    });
+    const stars = new Points(starsGeometry, starsMaterial);
+    three.scene.add(stars);
+
     const gltfLoader = new GLTFLoader();
     const modelUrl = withBasePath("/models/moon.glb");
     gltfLoader.load(
@@ -529,7 +566,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
       }
     );
 
-    const rotateSpeed = 0.35; // radians per second-ish (scaled by elapsed time)
+    const rotateSpeed = 0.12; // slow rotation around its axis
     three.onBeforeRender = ({ elapsed }) => {
       if (!modelRoot) return;
       // rotate around its local Y axis
@@ -539,6 +576,7 @@ export const InteractiveHero: React.FC<InteractiveHeroProps> = ({
     return () => {
       mounted = false;
       if (modelRoot) three.scene.remove(modelRoot);
+      three.scene.remove(stars);
       three.scene.remove(ambient);
       three.scene.remove(point);
       three.dispose();
