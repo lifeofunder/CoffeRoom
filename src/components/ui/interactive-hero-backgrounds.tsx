@@ -122,9 +122,24 @@ class X {
       typeof this.#config.maxPixelRatio === "number" && this.#config.maxPixelRatio > 0 ? this.#config.maxPixelRatio : 2;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxPixelRatio));
     this.onAfterResize(this.size);
+
+    // Ensure animation starts for window-fixed canvas.
+    if (this.#config.size === "window") {
+      this.#isAnimating = true;
+      this.#startAnimation();
+    }
   }
 
   #onIntersection(e: any) {
+    // For viewport-fixed canvas (size="window") we keep animation running.
+    // IntersectionObserver can occasionally report "not intersecting" on refresh,
+    // which results in the moon disappearing until the next scroll/reflow.
+    if (this.#config.size === "window") {
+      this.#isAnimating = true;
+      this.#startAnimation();
+      return;
+    }
+
     this.#isAnimating = e[0].isIntersecting;
     this.#isAnimating ? this.#startAnimation() : this.#stopAnimation();
   }
