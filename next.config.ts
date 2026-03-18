@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "export",
   basePath: "/CoffeRoom",
   assetPrefix: "/CoffeRoom/",
-  trailingSlash: true,
+  trailingSlash: false,
   images: {
     unoptimized: true,
   },
